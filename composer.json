@@ -1,0 +1,16 @@
+{
+  "name": "yagurdmitriy/staticmaplite",
+  "type": "symfony-bundle",
+  "authors": [
+    {
+      "name": "Yahur Dmitry",
+      "email": "yagurdmitriy@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=5.5"
+  },
+  "autoload": {
+    "psr-4": { "StaticMapLite\\": "" }
+  }
+}

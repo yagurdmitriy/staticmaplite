@@ -25,12 +25,14 @@
  *
  */
 
-error_reporting(0);
-ini_set('display_errors', 'off');
+namespace StaticMapLite;
 
-Class staticMapLite
+/**
+ * Class StaticMapLite
+ * @package StaticMapLite
+ */
+class StaticMapLite
 {
-
     protected $maxWidth = 1024;
     protected $maxHeight = 1024;
 
@@ -42,7 +44,7 @@ Class staticMapLite
 
     protected $tileDefaultSrc = 'mapnik';
     protected $markerBaseDir = 'images/markers';
-    protected $osmLogo = 'images/osm_logo.png';
+    protected $osmLogo = false;
 
     protected $markerPrototypes = array(
         // found at http://www.mapito.net/map-marker-icons.html
@@ -76,11 +78,11 @@ Class staticMapLite
     );
 
 
-    protected $useTileCache = true;
-    protected $tileCacheBaseDir = '../cache/tiles';
+    protected $useTileCache = false;
+    protected $tileCacheBaseDir = 'cache/tiles';
 
-    protected $useMapCache = true;
-    protected $mapCacheBaseDir = '../cache/maps';
+    protected $useMapCache = false;
+    protected $mapCacheBaseDir = 'cache/maps';
     protected $mapCacheID = '';
     protected $mapCacheFile = '';
     protected $mapCacheExtension = 'png';
@@ -90,48 +92,32 @@ Class staticMapLite
 
     public function __construct()
     {
-        $this->zoom = 0;
-        $this->lat = 0;
-        $this->lon = 0;
-        $this->width = 500;
-        $this->height = 350;
+        $this->zoom = 18;
+        $this->lat = 55.75431;
+        $this->lon = 37.61986;
+        $this->width = 740;
+        $this->height = 440;
         $this->markers = array();
         $this->maptype = $this->tileDefaultSrc;
     }
 
-    public function parseParams()
+    public function parseLiteParams($mapParams)
     {
-        global $_GET;
-
-        if (!empty($_GET['show'])) {
-           $this->parseOjwParams();
-        }
-        else {
-           $this->parseLiteParams();
-        }
-    }
-
-    public function parseLiteParams()
-    {
-        // get zoom from GET paramter
-        $this->zoom = $_GET['zoom'] ? intval($_GET['zoom']) : 0;
+        $this->zoom = $mapParams['zoom'] ? intval($mapParams['zoom']) : 0;
         if ($this->zoom > 18) $this->zoom = 18;
 
-        // get lat and lon from GET paramter
-        list($this->lat, $this->lon) = explode(',', $_GET['center']);
-        $this->lat = floatval($this->lat);
-        $this->lon = floatval($this->lon);
+        $this->lat = floatval($mapParams['lat']);
+        $this->lon = floatval($mapParams['lon']);
 
-        // get size from GET paramter
-        if ($_GET['size']) {
-            list($this->width, $this->height) = explode('x', $_GET['size']);
+        if ($mapParams['size']) {
+            list($this->width, $this->height) = explode('x', $mapParams['size']);
             $this->width = intval($this->width);
             if ($this->width > $this->maxWidth) $this->width = $this->maxWidth;
             $this->height = intval($this->height);
             if ($this->height > $this->maxHeight) $this->height = $this->maxHeight;
         }
-        if (!empty($_GET['markers'])) {
-            $markers = explode('|', $_GET['markers']);
+        if (is_array($mapParams['markers'])) {
+            $markers = $mapParams['markers'];
             foreach ($markers as $marker) {
                 list($markerLat, $markerLon, $markerType) = explode(',', $marker);
                 $markerLat = floatval($markerLat);
@@ -141,29 +127,8 @@ Class staticMapLite
             }
 
         }
-        if ($_GET['maptype']) {
-            if (array_key_exists($_GET['maptype'], $this->tileSrcUrl)) $this->maptype = $_GET['maptype'];
-        }
-    }
-
-    public function parseOjwParams()
-    {
-        $this->lat = floatval($_GET['lat']);
-        $this->lon = floatval($_GET['lon']);
-        $this->zoom = intval($_GET['z']);
-
-        $this->width = intval($_GET['w']);
-        if ($this->width > $this->maxWidth) $this->width = $this->maxWidth;
-        $this->height = intval($_GET['h']);
-        if ($this->height > $this->maxHeight) $this->height = $this->maxHeight;
-        
-
-	if (!empty($_GET['mlat0'])) {
-            $markerLat = floatval($_GET['mlat0']);
-            if (!empty($_GET['mlon0'])) {
-                $markerLon = floatval($_GET['mlon0']);
-                $this->markers[] = array('lat' => $markerLat, 'lon' => $markerLon, 'type' => "bullseye");
-            }
+        if ($mapParams['maptype']) {
+            if (array_key_exists($mapParams['maptype'], $this->tileSrcUrl)) $this->maptype = $mapParams['maptype'];
         }
     }
 
@@ -345,23 +310,6 @@ Class staticMapLite
             $this->writeTileToCache($url, $tile);
         }
         return $tile;
-
-    }
-
-    public function copyrightNotice()
-    {
-        $logoImg = imagecreatefrompng($this->osmLogo);
-        imagecopy($this->image, $logoImg, imagesx($this->image) - imagesx($logoImg), imagesy($this->image) - imagesy($logoImg), 0, 0, imagesx($logoImg), imagesy($logoImg));
-
-    }
-
-    public function sendHeader()
-    {
-        header('Content-Type: image/png');
-        $expires = 60 * 60 * 24 * 14;
-        header("Pragma: public");
-        header("Cache-Control: maxage=" . $expires);
-        header('Expires: ' . gmdate('D, d M Y H:i:s', time() + $expires) . ' GMT');
     }
 
     public function makeMap()
@@ -369,12 +317,14 @@ Class staticMapLite
         $this->initCoords();
         $this->createBaseMap();
         if (count($this->markers)) $this->placeMarkers();
-        if ($this->osmLogo) $this->copyrightNotice();
     }
 
-    public function showMap()
+    public function showMap($ticketId, $mapParams)
     {
-        $this->parseParams();
+        $this->parseLiteParams($mapParams);
+
+        $filename = 'map_' . $ticketId . '_zoom' . $this->zoom . '.png';
+
         if ($this->useMapCache) {
             // use map cache, so check cache for map
             if (!$this->checkMapCache()) {
@@ -382,28 +332,22 @@ Class staticMapLite
                 $this->makeMap();
                 $this->mkdir_recursive(dirname($this->mapCacheIDToFilename()), 0777);
                 imagepng($this->image, $this->mapCacheIDToFilename(), 9);
-                $this->sendHeader();
                 if (file_exists($this->mapCacheIDToFilename())) {
-                    return file_get_contents($this->mapCacheIDToFilename());
+                    file_get_contents($this->mapCacheIDToFilename());
                 } else {
-                    return imagepng($this->image);
+                    imagepng($this->image, $filename);
                 }
             } else {
                 // map is in cache
-                $this->sendHeader();
-                return file_get_contents($this->mapCacheIDToFilename());
+                file_get_contents($this->mapCacheIDToFilename());
             }
 
         } else {
             // no cache, make map, send headers and deliver png
             $this->makeMap();
-            $this->sendHeader();
-            return imagepng($this->image);
-
+            imagepng($this->image, $filename);
         }
+
+        return array('filename' => $filename, 'path' => realpath($filename));
     }
-
 }
-
-$map = new staticMapLite();
-print $map->showMap();

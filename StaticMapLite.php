@@ -43,7 +43,7 @@ class StaticMapLite
     );
 
     protected $tileDefaultSrc = 'mapnik';
-    protected $markerBaseDir = 'images/markers';
+    protected $markerBaseDir = __DIR__.'/images/markers';
     protected $osmLogo = false;
 
     protected $markerPrototypes = array(
@@ -73,6 +73,12 @@ class StaticMapLite
             'extension' => '.png',
             'shadow' => false,
             'offsetImage' => '-20,-20',
+            'offsetShadow' => false
+        ),
+        'custom' => array('regex' => '/^custom$/',
+            'extension' => '.png',
+            'shadow' => false,
+            'offsetImage' => '-12,-33',
             'offsetShadow' => false
         )
     );
@@ -319,11 +325,11 @@ class StaticMapLite
         if (count($this->markers)) $this->placeMarkers();
     }
 
-    public function showMap($ticketId, $mapParams)
+    public function createImageMap($path, $filename, $mapParams)
     {
         $this->parseLiteParams($mapParams);
 
-        $filename = 'map_' . $ticketId . '_zoom' . $this->zoom . '.png';
+        $filename .= '.png';
 
         if ($this->useMapCache) {
             // use map cache, so check cache for map
@@ -335,7 +341,7 @@ class StaticMapLite
                 if (file_exists($this->mapCacheIDToFilename())) {
                     file_get_contents($this->mapCacheIDToFilename());
                 } else {
-                    imagepng($this->image, $filename);
+                    imagepng($this->image, $path.$filename);
                 }
             } else {
                 // map is in cache
@@ -345,9 +351,9 @@ class StaticMapLite
         } else {
             // no cache, make map, send headers and deliver png
             $this->makeMap();
-            imagepng($this->image, $filename);
+            imagepng($this->image, $path.$filename);
         }
 
-        return array('filename' => $filename, 'path' => realpath($filename));
+        return $filename;
     }
 }
